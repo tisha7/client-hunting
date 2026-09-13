@@ -7,115 +7,111 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "OPENAI_API_KEY is not configured.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
     const body = await request.json();
 
-    const {
-      company_name,
-      website,
-      niche,
-      city,
-      country,
-      lead_score,
-      priority,
-      status,
-      service_opportunity,
-      research_notes,
-    } = body;
+    const { action = "analyze", lead } = body;
 
-    const prompt = `
-You are an expert B2B client hunting and sales assistant.
-
-Analyze the following potential client and provide practical, personalized recommendations.
-
-LEAD INFORMATION
-
-Company Name: ${company_name || "Unknown"}
-Website: ${website || "Not provided"}
-Niche: ${niche || "Not provided"}
-City: ${city || "Not provided"}
-Country: ${country || "Not provided"}
-
-Lead Score: ${lead_score || 0}
-Priority: ${priority || "Low"}
-Current Status: ${status || "New"}
-
-Service Opportunity:
-${service_opportunity || "Not provided"}
-
-Research Notes:
-${research_notes || "Not provided"}
-
-Return ONLY valid JSON in this exact format:
-
-{
-  "leadAnalysis": "string",
-  "value": "string",
-  "service": "string",
-  "strategy": "string",
-  "email": "string",
-  "nextAction": "string"
-}
-
-Instructions:
-
-- Analyze the lead realistically.
-- Do not invent specific facts about the company.
-- Recommend a relevant service offer based on available information.
-- Make the outreach strategy personalized.
-- Write a short professional cold email.
-- Give one clear next action.
-`;
-
-    const response = await openai.responses.create({
-      model: "gpt-5.6-luna",
-      input: prompt,
-    });
-
-    const output = response.output_text;
-
-    let analysis;
-
-    try {
-      analysis = JSON.parse(output);
-    } catch {
+    if (!lead) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "AI returned an invalid response format.",
-        },
-        {
-          status: 500,
-        }
+        { error: "Lead information is required." },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      analysis,
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY is not configured." },
+        { status: 500 }
+      );
+    }
+
+    const leadContext = `
+Company: ${lead.company_name || "Unknown"}
+Website: ${lead.website || "Unknown"}
+City: ${lead.city || "Unknown"}
+Country: ${lead.country || "Unknown"}
+Niche: ${lead.niche || "Unknown"}
+Business Type: ${lead.business_type || "Unknown"}
+Decision Maker: ${lead.decision_maker || "Unknown"}
+Role: ${lead.role || "Unknown"}
+Email: ${lead.email || "Unknown"}
+Service Opportunity: ${lead.service_opportunity || "Unknown"}
+Research Notes: ${lead.research_notes || "Unknown"}
+Lead Score: ${lead.lead_score || 0}
+Priority: ${lead.priority || "Unknown"}
+Status: ${lead.status || "Unknown"}
+`;
+
+    if (action === "follow_up") {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert sales outreach assistant. Write concise, personalized, professional follow-up messages. Do not invent facts about the company.",
+          },
+          {
+            role: "user",
+            content: `Create a personalized follow-up email and a short follow-up message for this lead.
+
+${leadContext}
+
+Return ONLY valid JSON in this format:
+{
+  "subject": "email subject",
+  "email": "follow-up email",
+  "message": "short follow-up message"
+}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const content = completion.choices[0]?.message?.content || "{}";
+      const result = JSON.parse(content);
+
+      return NextResponse.json(result);
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert B2B sales strategist. Analyze leads using only the provided information. Do not invent facts.",
+        },
+        {
+          role: "user",
+          content: `Analyze this sales lead and provide actionable outreach recommendations.
+
+${leadContext}
+
+Return ONLY valid JSON:
+{
+  "leadAnalysis": "analysis",
+  "value": "why valuable",
+  "service": "recommended service",
+  "strategy": "outreach strategy",
+  "email": "cold email",
+  "nextAction": "recommended next action"
+}`,
+        },
+      ],
+      response_format: { type: "json_object" },
     });
+
+    const content = completion.choices[0]?.message?.content || "{}";
+    const result = JSON.parse(content);
+
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("AI Assistant Error:", error);
+    console.error("AI assistant error:", error);
 
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to analyze lead with AI.",
-      },
-      {
-        status: 500,
-      }
+      { error: "Failed to generate AI response." },
+      { status: 500 }
     );
   }
 }

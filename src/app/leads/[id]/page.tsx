@@ -77,6 +77,10 @@ export default function LeadDetailsPage() {
   const [aiError, setAiError] = useState("");
   const [savingAIAnalysis, setSavingAIAnalysis] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpResult, setFollowUpResult] = useState<any>(null);
+  const [followUpError, setFollowUpError] = useState("");
+  const [followUpMessage, setFollowUpMessage] = useState("");
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState("");
@@ -510,6 +514,78 @@ ${aiResult.nextAction || ""}`;
 
     setAiMessage("AI analysis saved to Quick Notes.");
     setSavingAIAnalysis(false);
+  }
+
+  async function generateFollowUpAI() {
+    if (!lead) return;
+
+    setFollowUpLoading(true);
+    setFollowUpError("");
+    setFollowUpMessage("");
+    setFollowUpResult(null);
+
+    try {
+      const response = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "follow_up",
+          lead,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Failed to generate follow-up."
+        );
+      }
+
+      setFollowUpResult(data);
+    } catch (error) {
+      setFollowUpError(
+        error instanceof Error
+          ? error.message
+          : "Failed to generate follow-up."
+      );
+    } finally {
+      setFollowUpLoading(false);
+    }
+  }
+
+  async function copyFollowUpEmail() {
+    if (!followUpResult?.email) return;
+
+    try {
+      const subject = followUpResult.subject
+        ? `Subject: ${followUpResult.subject}\n\n`
+        : "";
+
+      await navigator.clipboard.writeText(
+        subject + followUpResult.email
+      );
+
+      setFollowUpMessage("Follow-up email copied.");
+    } catch {
+      setFollowUpMessage("Failed to copy follow-up email.");
+    }
+  }
+
+  async function copyFollowUpMessage() {
+    if (!followUpResult?.message) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        followUpResult.message
+      );
+
+      setFollowUpMessage("Follow-up message copied.");
+    } catch {
+      setFollowUpMessage("Failed to copy follow-up message.");
+    }
   }
 
   async function analyzeWithAI() {
@@ -1032,6 +1108,92 @@ ${aiResult.nextAction || ""}`;
                 content={aiResult.nextAction}
               />
               </div>
+            </div>
+          )}
+        </section>
+
+        {/* AI Follow-up Generator */}
+        <section className="mt-6 rounded-xl border border-blue-500/20 bg-slate-900 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold">
+                ✉️ AI Follow-up Generator
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Generate a personalized follow-up email and short message.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={generateFollowUpAI}
+              disabled={followUpLoading}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {followUpLoading
+                ? "Generating..."
+                : "✨ Generate Follow-up"}
+            </button>
+          </div>
+
+          {followUpError && (
+            <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+              {followUpError}
+            </div>
+          )}
+
+          {followUpResult && (
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={copyFollowUpEmail}
+                  className="rounded-lg border border-blue-500/30 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/10"
+                >
+                  📋 Copy Email
+                </button>
+
+                <button
+                  type="button"
+                  onClick={copyFollowUpMessage}
+                  className="rounded-lg border border-blue-500/30 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/10"
+                >
+                  📋 Copy Message
+                </button>
+
+                <button
+                  type="button"
+                  onClick={generateFollowUpAI}
+                  disabled={followUpLoading}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  🔄 Regenerate
+                </button>
+              </div>
+
+              {followUpMessage && (
+                <p className="text-sm text-emerald-400">
+                  {followUpMessage}
+                </p>
+              )}
+
+              {followUpResult.subject && (
+                <AISection
+                  title="📌 Follow-up Email Subject"
+                  content={followUpResult.subject}
+                />
+              )}
+
+              <AISection
+                title="✉️ Follow-up Email"
+                content={followUpResult.email || ""}
+              />
+
+              <AISection
+                title="💬 Short Follow-up Message"
+                content={followUpResult.message || ""}
+              />
             </div>
           )}
         </section>
