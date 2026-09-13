@@ -1,11 +1,54 @@
+"use client";
+
+import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function NewLeadPage() {
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setLoading(true);
+    setMessage("");
+
+    const formData = new FormData(event.currentTarget);
+
+    const { error } = await supabase.from("leads").insert({
+      company_name: formData.get("company_name") as string,
+      website: formData.get("website") as string,
+      country: formData.get("country") as string,
+      city: formData.get("city") as string,
+      niche: formData.get("niche") as string,
+      business_type: formData.get("business_type") as string,
+      decision_maker: formData.get("decision_maker") as string,
+      role: formData.get("role") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+      lead_score: Number(formData.get("lead_score")) || 0,
+      priority: formData.get("priority") as string,
+      status: formData.get("status") as string,
+      service_opportunity: formData.get("service_opportunity") as string,
+      research_notes: formData.get("research_notes") as string,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setMessage(`Error: ${error.message}`);
+      return;
+    }
+
+    setMessage("Lead saved successfully! 🎉");
+    event.currentTarget.reset();
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="flex min-h-screen">
 
-        {/* Sidebar */}
         <aside className="hidden w-64 border-r border-slate-800 bg-slate-900 p-6 md:block">
           <Link href="/" className="mb-10 block text-xl font-bold">
             🎯 Client Hunter
@@ -19,32 +62,15 @@ export default function NewLeadPage() {
               Dashboard
             </Link>
 
-            <a className="block rounded-lg px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white">
-              🔎 Lead Finder
-            </a>
-
             <Link
               href="/leads"
               className="block rounded-lg bg-blue-600 px-4 py-3 font-medium"
             >
               👥 Leads
             </Link>
-
-            <a className="block rounded-lg px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white">
-              📊 Pipeline
-            </a>
-
-            <a className="block rounded-lg px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white">
-              📅 Follow-ups
-            </a>
-
-            <a className="block rounded-lg px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white">
-              📝 Templates
-            </a>
           </nav>
         </aside>
 
-        {/* Main */}
         <section className="flex-1 p-6 md:p-10">
           <div className="mx-auto max-w-4xl">
 
@@ -65,9 +91,8 @@ export default function NewLeadPage() {
               </p>
             </div>
 
-            <form className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-8">
 
-              {/* Business Information */}
               <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
                 <h2 className="mb-6 text-lg font-semibold">
                   🏢 Business Information
@@ -81,7 +106,9 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="company_name"
                       type="text"
+                      required
                       placeholder="Example Company"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
                     />
@@ -93,6 +120,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="website"
                       type="url"
                       placeholder="https://example.com"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -105,6 +133,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="country"
                       type="text"
                       placeholder="USA"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -117,6 +146,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="city"
                       type="text"
                       placeholder="Orlando"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -129,6 +159,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="niche"
                       type="text"
                       placeholder="Cleaning Services"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -141,6 +172,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="business_type"
                       type="text"
                       placeholder="Local Business"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -150,7 +182,6 @@ export default function NewLeadPage() {
                 </div>
               </div>
 
-              {/* Contact Information */}
               <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
                 <h2 className="mb-6 text-lg font-semibold">
                   👤 Contact Information
@@ -164,6 +195,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="decision_maker"
                       type="text"
                       placeholder="Full name"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -176,6 +208,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="role"
                       type="text"
                       placeholder="Owner / Founder"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -188,6 +221,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="email"
                       type="email"
                       placeholder="hello@example.com"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -200,6 +234,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="phone"
                       type="tel"
                       placeholder="+1 000 000 0000"
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -209,7 +244,6 @@ export default function NewLeadPage() {
                 </div>
               </div>
 
-              {/* Lead Qualification */}
               <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
                 <h2 className="mb-6 text-lg font-semibold">
                   🎯 Lead Qualification
@@ -223,6 +257,7 @@ export default function NewLeadPage() {
                     </label>
 
                     <input
+                      name="lead_score"
                       type="number"
                       min="0"
                       max="100"
@@ -236,7 +271,11 @@ export default function NewLeadPage() {
                       Priority
                     </label>
 
-                    <select className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500">
+                    <select
+                      name="priority"
+                      defaultValue="Medium"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+                    >
                       <option>Medium</option>
                       <option>Hot</option>
                       <option>High</option>
@@ -249,7 +288,11 @@ export default function NewLeadPage() {
                       Status
                     </label>
 
-                    <select className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500">
+                    <select
+                      name="status"
+                      defaultValue="New"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+                    >
                       <option>New</option>
                       <option>Researched</option>
                       <option>Contacted</option>
@@ -268,6 +311,7 @@ export default function NewLeadPage() {
                   </label>
 
                   <input
+                    name="service_opportunity"
                     type="text"
                     placeholder="Landing Page, Website Redesign, CRO..."
                     className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -280,6 +324,7 @@ export default function NewLeadPage() {
                   </label>
 
                   <textarea
+                    name="research_notes"
                     rows={6}
                     placeholder="Website problems, business information, potential opportunities..."
                     className="w-full resize-none rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none placeholder:text-slate-600 focus:border-blue-500"
@@ -287,7 +332,18 @@ export default function NewLeadPage() {
                 </div>
               </div>
 
-              {/* Actions */}
+              {message && (
+                <div
+                  className={`rounded-lg border p-4 text-sm ${
+                    message.startsWith("Error")
+                      ? "border-red-500/30 bg-red-500/10 text-red-300"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  }`}
+                >
+                  {message}
+                </div>
+              )}
+
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <Link
                   href="/leads"
@@ -298,9 +354,10 @@ export default function NewLeadPage() {
 
                 <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-6 py-3 font-medium hover:bg-blue-500"
+                  disabled={loading}
+                  className="rounded-lg bg-blue-600 px-6 py-3 font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Save Lead
+                  {loading ? "Saving..." : "Save Lead"}
                 </button>
               </div>
 
