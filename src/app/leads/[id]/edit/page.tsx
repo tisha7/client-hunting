@@ -19,6 +19,7 @@ type LeadForm = {
   lead_score: string;
   priority: string;
   status: string;
+  follow_up_date: string;
   service_opportunity: string;
   research_notes: string;
 };
@@ -37,6 +38,7 @@ const emptyLead: LeadForm = {
   lead_score: "0",
   priority: "Low",
   status: "New",
+  follow_up_date: "",
   service_opportunity: "",
   research_notes: "",
 };
@@ -77,6 +79,7 @@ export default function EditLeadPage() {
         lead_score: String(data.lead_score ?? 0),
         priority: data.priority ?? "Low",
         status: data.status ?? "New",
+        follow_up_date: data.follow_up_date ?? "",
         service_opportunity: data.service_opportunity ?? "",
         research_notes: data.research_notes ?? "",
       });
@@ -115,6 +118,7 @@ export default function EditLeadPage() {
         lead_score: Number(form.lead_score) || 0,
         priority: form.priority,
         status: form.status,
+        follow_up_date: form.follow_up_date || null,
         service_opportunity: form.service_opportunity || null,
         research_notes: form.research_notes || null,
       })
@@ -264,6 +268,15 @@ export default function EditLeadPage() {
                 value={form.priority}
                 onChange={(value) => updateField("priority", value)}
                 options={["Low", "Warm", "Hot"]}
+              />
+
+              <Input
+                label="Follow-up Date"
+                type="date"
+                value={form.follow_up_date}
+                onChange={(value) =>
+                  updateField("follow_up_date", value)
+                }
               />
 
               <Select

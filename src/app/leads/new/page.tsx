@@ -30,6 +30,8 @@ export default function NewLeadPage() {
       lead_score: Number(formData.get("lead_score")) || 0,
       priority: formData.get("priority") as string,
       status: formData.get("status") as string,
+      follow_up_date:
+        (formData.get("follow_up_date") as string) || null,
       service_opportunity: formData.get("service_opportunity") as string,
       research_notes: formData.get("research_notes") as string,
     });
@@ -286,6 +288,18 @@ export default function NewLeadPage() {
                   <div>
                     <label className="mb-2 block text-sm text-slate-300">
                       Status
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm text-slate-300">
+                        Follow-up Date
+                      </span>
+
+                      <input
+                        type="date"
+                        name="follow_up_date"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+                      />
                     </label>
 
                     <select
