@@ -109,8 +109,13 @@ Return ONLY valid JSON:
   } catch (error) {
     console.error("AI assistant error:", error);
 
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to generate AI response.";
+
     return NextResponse.json(
-      { error: "Failed to generate AI response." },
+      { error: message },
       { status: 500 }
     );
   }
