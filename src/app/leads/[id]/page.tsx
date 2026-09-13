@@ -72,6 +72,11 @@ export default function LeadDetailsPage() {
   const [completingFollowUp, setCompletingFollowUp] = useState(false);
   const [followUpDate, setFollowUpDate] = useState("");
   const [savingFollowUp, setSavingFollowUp] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiError, setAiError] = useState("");
+  const [savingAIAnalysis, setSavingAIAnalysis] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState("");
@@ -442,6 +447,117 @@ export default function LeadDetailsPage() {
         )}
       </main>
     );
+  }
+
+  async function copyAIEmail() {
+    if (!aiResult?.email) return;
+
+    try {
+      await navigator.clipboard.writeText(aiResult.email);
+      setAiMessage("Cold email copied successfully.");
+    } catch {
+      setAiMessage("Failed to copy the cold email.");
+    }
+  }
+
+  async function saveAIAnalysis() {
+    if (!lead || !aiResult) return;
+
+    setSavingAIAnalysis(true);
+    setAiMessage("");
+
+    const content = `AI Lead Analysis
+
+Lead Analysis:
+${aiResult.leadAnalysis || ""}
+
+Why This Client Is Valuable:
+${aiResult.value || ""}
+
+Recommended Service Offer:
+${aiResult.service || ""}
+
+Outreach Strategy:
+${aiResult.strategy || ""}
+
+Cold Email:
+${aiResult.email || ""}
+
+Recommended Next Action:
+${aiResult.nextAction || ""}`;
+
+    const { data, error } = await supabase
+      .from("lead_notes")
+      .insert({
+        lead_id: leadId,
+        content,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      setAiMessage(error.message);
+      setSavingAIAnalysis(false);
+      return;
+    }
+
+    if (data) {
+      setNotes((current) => [
+        data as Note,
+        ...current,
+      ]);
+    }
+
+    setAiMessage("AI analysis saved to Quick Notes.");
+    setSavingAIAnalysis(false);
+  }
+
+  async function analyzeWithAI() {
+    if (!lead) return;
+
+    setAiLoading(true);
+    setAiError("");
+    setAiMessage("");
+    setAiResult(null);
+
+    try {
+      const response = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          company_name: lead.company_name,
+          website: lead.website,
+          niche: lead.niche,
+          city: lead.city,
+          country: lead.country,
+          lead_score: lead.lead_score,
+          priority: lead.priority,
+          status: lead.status,
+          service_opportunity: lead.service_opportunity,
+          research_notes: lead.research_notes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error || "Failed to analyze lead."
+        );
+      }
+
+      setAiResult(data.analysis);
+    } catch (error) {
+      setAiError(
+        error instanceof Error
+          ? error.message
+          : "Failed to analyze lead."
+      );
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   return (
@@ -816,6 +932,110 @@ export default function LeadDetailsPage() {
           </div>
         </section>
 
+        {/* AI Lead Assistant */}
+        <section className="mt-6 rounded-xl border border-purple-500/20 bg-slate-900 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold">
+                🤖 AI Lead Assistant
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Get AI-powered insights and outreach ideas for this lead.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={analyzeWithAI}
+              disabled={aiLoading}
+              className="rounded-lg bg-purple-600 px-5 py-3 text-sm font-medium hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {aiLoading
+                ? "Analyzing..."
+                : "✨ Analyze Lead"}
+            </button>
+          </div>
+
+          {aiError && (
+            <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+              {aiError}
+            </div>
+          )}
+
+          {aiResult && (
+            <div className="mt-6">
+              <div className="mb-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={copyAIEmail}
+                  className="rounded-lg border border-purple-500/30 px-4 py-2 text-sm font-medium text-purple-300 hover:bg-purple-500/10"
+                >
+                  📋 Copy Cold Email
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveAIAnalysis}
+                  disabled={savingAIAnalysis}
+                  className="rounded-lg border border-blue-500/30 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingAIAnalysis
+                    ? "Saving..."
+                    : "💾 Save AI Analysis"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={analyzeWithAI}
+                  disabled={aiLoading}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  🔄 Regenerate
+                </button>
+              </div>
+
+              {aiMessage && (
+                <p className="mb-4 text-sm text-emerald-400">
+                  {aiMessage}
+                </p>
+              )}
+
+              <div className="grid gap-4">
+              <AISection
+                title="🔍 Lead Analysis"
+                content={aiResult.leadAnalysis}
+              />
+
+              <AISection
+                title="💎 Why This Client Is Valuable"
+                content={aiResult.value}
+              />
+
+              <AISection
+                title="🎯 Recommended Service Offer"
+                content={aiResult.service}
+              />
+
+              <AISection
+                title="📨 Outreach Strategy"
+                content={aiResult.strategy}
+              />
+
+              <AISection
+                title="✉️ Cold Email Example"
+                content={aiResult.email}
+              />
+
+              <AISection
+                title="➡️ Recommended Next Action"
+                content={aiResult.nextAction}
+              />
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Activity Timeline */}
         <section className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-6">
 
@@ -1013,6 +1233,27 @@ function Info({
           {value}
         </p>
       )}
+    </div>
+  );
+}
+
+
+function AISection({
+  title,
+  content,
+}: {
+  title: string;
+  content: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+      <h3 className="font-semibold text-purple-300">
+        {title}
+      </h3>
+
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+        {content}
+      </p>
     </div>
   );
 }
