@@ -1,9 +1,19 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
+
+function extractJson(text: string) {
+  const cleaned = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  return JSON.parse(cleaned);
+}
 
 export async function POST(request: Request) {
   try {
@@ -18,9 +28,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY is not configured." },
+        { error: "GEMINI_API_KEY is not configured." },
         { status: 500 }
       );
     }
@@ -42,68 +52,72 @@ Priority: ${lead.priority || "Unknown"}
 Status: ${lead.status || "Unknown"}
 `;
 
+    let prompt = "";
+
     if (action === "follow_up") {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert sales outreach assistant. Write concise, personalized, professional follow-up messages. Do not invent facts about the company.",
-          },
-          {
-            role: "user",
-            content: `Create a personalized follow-up email and a short follow-up message for this lead.
+      prompt = `You are an expert sales outreach assistant.
 
+Write concise, personalized, professional follow-up messages.
+
+IMPORTANT:
+- Use only the information provided.
+- Do not invent facts about the company.
+- Keep the email natural and useful.
+- Return ONLY valid JSON.
+- Do not use markdown.
+
+Lead information:
 ${leadContext}
 
-Return ONLY valid JSON in this format:
+Return this exact JSON structure:
+
 {
-  "subject": "email subject",
-  "email": "follow-up email",
+  "subject": "follow-up email subject",
+  "email": "complete follow-up email",
   "message": "short follow-up message"
-}`,
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+}`;
+    } else {
+      prompt = `You are an expert B2B sales strategist.
 
-      const content = completion.choices[0]?.message?.content || "{}";
-      const result = JSON.parse(content);
+Analyze this sales lead and provide actionable outreach recommendations.
 
-      return NextResponse.json(result);
-    }
+IMPORTANT:
+- Use only the information provided.
+- Do not invent facts about the company.
+- Be practical and concise.
+- Return ONLY valid JSON.
+- Do not use markdown.
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert B2B sales strategist. Analyze leads using only the provided information. Do not invent facts.",
-        },
-        {
-          role: "user",
-          content: `Analyze this sales lead and provide actionable outreach recommendations.
-
+Lead information:
 ${leadContext}
 
-Return ONLY valid JSON:
+Return this exact JSON structure:
+
 {
   "leadAnalysis": "analysis",
-  "value": "why valuable",
-  "service": "recommended service",
+  "value": "why this client is valuable",
+  "service": "recommended service offer",
   "strategy": "outreach strategy",
-  "email": "cold email",
+  "email": "cold email example",
   "nextAction": "recommended next action"
-}`,
-        },
-      ],
-      response_format: { type: "json_object" },
+}`;
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      },
     });
 
-    const content = completion.choices[0]?.message?.content || "{}";
-    const result = JSON.parse(content);
+    const text = response.text;
+
+    if (!text) {
+      throw new Error("Gemini returned an empty response.");
+    }
+
+    const result = extractJson(text);
 
     return NextResponse.json(result);
   } catch (error) {
